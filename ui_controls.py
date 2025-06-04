@@ -22,7 +22,7 @@ class Slider:
         self.dragging = False
         
         # Font
-        self.font = pygame.font.Font(None, 24)
+        self.font = pygame.font.Font(None, 28)
         
     def handle_event(self, event: pygame.event.Event) -> bool:
         """Handle pygame events, return True if value changed"""
@@ -70,7 +70,7 @@ class Slider:
         
         # Draw label and value
         label_text = self.font.render(f"{self.label}: {self.value:.3f}", True, self.text_color)
-        screen.blit(label_text, (self.rect.left, self.rect.top - 25))
+        screen.blit(label_text, (self.rect.left, self.rect.top - 30))
 
 
 class Checkbox:
@@ -118,30 +118,88 @@ class Checkbox:
         screen.blit(label_text, (self.rect.right + 10, self.rect.centery - label_text.get_height() // 2))
         
 
+class Button:
+    def __init__(self, x: int, y: int, width: int, height: int, text: str):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        
+        # Visual properties
+        self.normal_color = (100, 100, 200)
+        self.hover_color = (120, 120, 220)
+        self.pressed_color = (80, 80, 180)
+        self.text_color = (255, 255, 255)
+        
+        # State
+        self.hovered = False
+        self.pressed = False
+        
+        # Font
+        self.font = pygame.font.Font(None, 26)
+        
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        """Handle pygame events, return True if button was clicked"""
+        if event.type == pygame.MOUSEMOTION:
+            self.hovered = self.rect.collidepoint(event.pos)
+            
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                self.pressed = True
+                
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if self.pressed and self.rect.collidepoint(event.pos):
+                self.pressed = False
+                return True
+            self.pressed = False
+            
+        return False
+        
+    def draw(self, screen: pygame.Surface):
+        """Draw the button"""
+        # Choose color based on state
+        if self.pressed:
+            color = self.pressed_color
+        elif self.hovered:
+            color = self.hover_color
+        else:
+            color = self.normal_color
+            
+        # Draw button
+        pygame.draw.rect(screen, color, self.rect)
+        pygame.draw.rect(screen, (50, 50, 100), self.rect, 2)
+        
+        # Draw text
+        text_surface = self.font.render(self.text, True, self.text_color)
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        screen.blit(text_surface, text_rect)
+
+
 class ControlPanel:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
-        self.width = 300
+        self.width = 400  # Increased width for better layout
         self.padding = 10
         self.slider_height = 20
-        self.slider_spacing = 50
+        self.slider_spacing = 60
         
         # Create sliders with adjusted positions
         slider_x = x + self.padding + 30  # Make room for checkboxes
         self.sliders = {
             'kp': Slider(slider_x, y + self.padding, 
-                        self.width - 2 * self.padding - 30, self.slider_height,
-                        0.0, 10.0, 2.0, "Kp (Proportional)"),
+                        self.width - 50, self.slider_height,
+                        0.0, 10.0, 3.345, "Kp (Proportional)"),
             'ki': Slider(slider_x, y + self.padding + self.slider_spacing,
-                        self.width - 2 * self.padding - 30, self.slider_height,
-                        0.0, 5.0, 0.1, "Ki (Integral)"),
+                        self.width - 50, self.slider_height,
+                        0.0, 3.0, 0.014, "Ki (Integral)"),
             'kd': Slider(slider_x, y + self.padding + 2 * self.slider_spacing,
-                        self.width - 2 * self.padding - 30, self.slider_height,
-                        0.0, 5.0, 0.5, "Kd (Derivative)"),
+                        self.width - 50, self.slider_height,
+                        0.0, 5.0, 3.486, "Kd (Derivative)"),
             'mass': Slider(x + self.padding, y + self.padding + 3 * self.slider_spacing,
                           self.width - 2 * self.padding, self.slider_height,
                           0.1, 10.0, 1.0, "Mass"),
+            'speed': Slider(x + self.padding, y + self.padding + 4 * self.slider_spacing,
+                          self.width - 2 * self.padding, self.slider_height,
+                          0.1, 5.0, 1.0, "Simulation Speed"),
         }
         
         # Create checkboxes for PID components
@@ -155,12 +213,21 @@ class ControlPanel:
                                   checkbox_size, "", True),
         }
         
+        # Create reset button
+        self.reset_button = Button(
+            x + self.padding, 
+            y + self.padding + 5 * self.slider_spacing,
+            self.width - 2 * self.padding,
+            30,
+            "Reset Graphs"
+        )
+        
         # Background
         self.bg_color = (250, 250, 250)
         self.border_color = (100, 100, 100)
         
         # Calculate total height
-        self.height = 4 * self.slider_spacing + 2 * self.padding
+        self.height = 6 * self.slider_spacing + 2 * self.padding
         
     def handle_event(self, event: pygame.event.Event) -> dict:
         """Handle events and return dict of changed values"""
@@ -172,6 +239,10 @@ class ControlPanel:
         for name, checkbox in self.checkboxes.items():
             if checkbox.handle_event(event):
                 changed[name] = checkbox.checked
+                
+        # Handle reset button
+        if self.reset_button.handle_event(event):
+            changed['reset_graphs'] = True
                 
         return changed
         
@@ -189,6 +260,9 @@ class ControlPanel:
         # Draw checkboxes
         for checkbox in self.checkboxes.values():
             checkbox.draw(screen)
+            
+        # Draw reset button
+        self.reset_button.draw(screen)
             
     def get_values(self) -> dict:
         """Get current values of all sliders and checkboxes"""
