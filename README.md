@@ -47,7 +47,7 @@ An interactive Python simulation for understanding PID (Proportional-Integral-De
 
 1. Clone the repository:
 ```bash
-git clone [<repository-url>](https://github.com/krinkin/pid-simulation.git)
+git clone https://github.com/krinkin/pid-simulation.git
 cd pid-simulation
 ```
 
