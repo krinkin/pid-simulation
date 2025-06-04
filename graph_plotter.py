@@ -10,7 +10,7 @@ from typing import Tuple
 
 class GraphPlotter:
     def __init__(self, x: int, y: int, width: int, height: int, 
-                 max_points: int = 300, time_window: float = 10.0):
+                 max_points: int = 600, time_window: float = 20.0):
         self.x = x
         self.y = y
         self.width = width
@@ -22,13 +22,13 @@ class GraphPlotter:
         self.error_range = (-600, 600)  # pixels
         self.output_range = (-600, 600)  # force units
         
-        # Data storage
-        self.time_data = deque(maxlen=max_points)
-        self.error_data = deque(maxlen=max_points)
-        self.output_data = deque(maxlen=max_points)
-        self.p_data = deque(maxlen=max_points)
-        self.i_data = deque(maxlen=max_points)
-        self.d_data = deque(maxlen=max_points)
+        # Data storage - no maxlen, we'll manage the window ourselves
+        self.time_data = []
+        self.error_data = []
+        self.output_data = []
+        self.p_data = []
+        self.i_data = []
+        self.d_data = []
         
         # Time tracking
         self.start_time = 0
@@ -88,8 +88,25 @@ class GraphPlotter:
         # Convert to numpy arrays
         time_array = np.array(self.time_data)
         
+        # Filter data to only show points within the display window
+        if self.current_time > self.time_window:
+            min_time = self.current_time - self.time_window
+            mask = time_array >= min_time
+            time_array = time_array[mask]
+            error_array = np.array(self.error_data)[mask]
+            output_array = np.array(self.output_data)[mask]
+            p_array = np.array(self.p_data)[mask]
+            i_array = np.array(self.i_data)[mask]
+            d_array = np.array(self.d_data)[mask]
+        else:
+            error_array = np.array(self.error_data)
+            output_array = np.array(self.output_data)
+            p_array = np.array(self.p_data)
+            i_array = np.array(self.i_data)
+            d_array = np.array(self.d_data)
+        
         # Plot error
-        self.ax1.plot(time_array, self.error_data, 'b-', linewidth=2, label='Error')
+        self.ax1.plot(time_array, error_array, 'b-', linewidth=2, label='Error')
         self.ax1.axhline(y=0, color='k', linestyle='-', alpha=0.3)
         self.ax1.set_ylabel('Error (pixels)', fontsize=12)
         self.ax1.set_ylim(self.error_range)
@@ -97,10 +114,10 @@ class GraphPlotter:
         self.ax1.legend(loc='upper right', fontsize=10)
         
         # Plot control output and components
-        self.ax2.plot(time_array, self.output_data, 'k-', linewidth=2, label='Total')
-        self.ax2.plot(time_array, self.p_data, 'g--', alpha=0.7, label='P')
-        self.ax2.plot(time_array, self.i_data, 'r--', alpha=0.7, label='I')
-        self.ax2.plot(time_array, self.d_data, 'b--', alpha=0.7, label='D')
+        self.ax2.plot(time_array, output_array, 'k-', linewidth=2, label='Total')
+        self.ax2.plot(time_array, p_array, 'g--', alpha=0.7, label='P')
+        self.ax2.plot(time_array, i_array, 'r--', alpha=0.7, label='I')
+        self.ax2.plot(time_array, d_array, 'b--', alpha=0.7, label='D')
         self.ax2.axhline(y=0, color='k', linestyle='-', alpha=0.3)
         self.ax2.set_ylabel('Control Output (N)', fontsize=12)
         self.ax2.set_xlabel('Time (s)', fontsize=12)
@@ -108,15 +125,15 @@ class GraphPlotter:
         self.ax2.grid(True, alpha=0.3)
         self.ax2.legend(loc='upper right', fontsize=10)
         
-        # Set x-axis limits - always show from 0 to either current time or time window
-        if self.current_time < self.time_window:
-            # Show fixed window from 0 to time_window
+        # Set x-axis limits - always show a fixed time window
+        if self.current_time <= self.time_window:
+            # Show from 0 to time_window when we haven't filled the window yet
             self.ax1.set_xlim(0, self.time_window)
             self.ax2.set_xlim(0, self.time_window)
         else:
-            # Show all data from 0 to current time
-            self.ax1.set_xlim(0, self.current_time)
-            self.ax2.set_xlim(0, self.current_time)
+            # Show sliding window of the most recent data
+            self.ax1.set_xlim(self.current_time - self.time_window, self.current_time)
+            self.ax2.set_xlim(self.current_time - self.time_window, self.current_time)
         
         # Set tick label size
         self.ax1.tick_params(labelsize=10)
@@ -142,11 +159,11 @@ class GraphPlotter:
             
     def reset(self):
         """Clear all data"""
-        self.time_data.clear()
-        self.error_data.clear()
-        self.output_data.clear()
-        self.p_data.clear()
-        self.i_data.clear()
-        self.d_data.clear()
+        self.time_data = []
+        self.error_data = []
+        self.output_data = []
+        self.p_data = []
+        self.i_data = []
+        self.d_data = []
         self.start_time = 0
         self.current_time = 0
