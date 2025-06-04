@@ -108,13 +108,15 @@ class GraphPlotter:
         self.ax2.grid(True, alpha=0.3)
         self.ax2.legend(loc='upper right', fontsize=10)
         
-        # Set x-axis limits
-        if self.current_time > self.time_window:
-            self.ax1.set_xlim(self.current_time - self.time_window, self.current_time)
-            self.ax2.set_xlim(self.current_time - self.time_window, self.current_time)
-        else:
+        # Set x-axis limits - always show from 0 to either current time or time window
+        if self.current_time < self.time_window:
+            # Show fixed window from 0 to time_window
             self.ax1.set_xlim(0, self.time_window)
             self.ax2.set_xlim(0, self.time_window)
+        else:
+            # Show all data from 0 to current time
+            self.ax1.set_xlim(0, self.current_time)
+            self.ax2.set_xlim(0, self.current_time)
         
         # Set tick label size
         self.ax1.tick_params(labelsize=10)

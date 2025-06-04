@@ -199,7 +199,7 @@ class ControlPanel:
                           0.1, 10.0, 1.0, "Mass"),
             'speed': Slider(x + self.padding, y + self.padding + 4 * self.slider_spacing,
                           self.width - 2 * self.padding, self.slider_height,
-                          0.1, 5.0, 1.0, "Simulation Speed"),
+                          0.5, 5.0, 2.2, "Simulation Speed"),
         }
         
         # Create checkboxes for PID components

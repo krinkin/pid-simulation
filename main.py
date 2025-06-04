@@ -24,7 +24,7 @@ class SimulationConfig:
     friction: float = 0.1
     
     # Simulation
-    simulation_speed: float = 1.0  # 1.0 = real-time, 0.5 = half speed, 2.0 = double speed
+    simulation_speed: float = 2.2  # 1.0 = real-time, 0.5 = half speed, 2.0 = double speed
 
 
 class PIDSimulator:
