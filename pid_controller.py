@@ -27,7 +27,8 @@ class PIDController:
         # Output limits
         self.output_limit = 100.0
         
-    def update(self, setpoint: float, current_value: float, dt: float) -> float:
+    def update(self, setpoint: float, current_value: float, dt: float, 
+               enabled: Optional[dict] = None) -> float:
         """
         Calculate PID output
         
@@ -35,31 +36,38 @@ class PIDController:
             setpoint: Target value
             current_value: Current measured value
             dt: Time step
+            enabled: Dict with 'kp', 'ki', 'kd' keys indicating if each component is enabled
             
         Returns:
             Control output (force to apply)
         """
+        if enabled is None:
+            enabled = {'kp': True, 'ki': True, 'kd': True}
         # Calculate error
         self.state.error = setpoint - current_value
         
         # Proportional term
-        p_term = self.kp * self.state.error
+        p_term = self.kp * self.state.error if enabled.get('kp', True) else 0.0
         
         # Integral term with anti-windup
-        self.state.integral += self.state.error * dt
-        self.state.integral = np.clip(
-            self.state.integral, 
-            -self.integral_limit, 
-            self.integral_limit
-        )
-        i_term = self.ki * self.state.integral
+        if enabled.get('ki', True):
+            self.state.integral += self.state.error * dt
+            self.state.integral = np.clip(
+                self.state.integral, 
+                -self.integral_limit, 
+                self.integral_limit
+            )
+            i_term = self.ki * self.state.integral
+        else:
+            i_term = 0.0
         
         # Derivative term
-        if dt > 0:
+        if enabled.get('kd', True) and dt > 0:
             self.state.derivative = (self.state.error - self.state.last_error) / dt
+            d_term = self.kd * self.state.derivative
         else:
             self.state.derivative = 0.0
-        d_term = self.kd * self.state.derivative
+            d_term = 0.0
         
         # Calculate total output
         self.state.output = p_term + i_term + d_term
