@@ -18,9 +18,11 @@ class GraphPlotter:
         self.max_points = max_points
         self.time_window = time_window
         
-        # Fixed scale ranges
-        self.error_range = (-600, 600)  # pixels
-        self.output_range = (-600, 600)  # force units
+        # Scale ranges - can be adjusted
+        self.error_scale = 2  # pixels - default range for error (-2 to 2)
+        self.output_scale = 100  # force units
+        self.error_range = (-self.error_scale, self.error_scale)
+        self.output_range = (-self.output_scale, self.output_scale)
         
         # Data storage - no maxlen, we'll manage the window ourselves
         self.time_data = []
@@ -62,6 +64,9 @@ class GraphPlotter:
         # Surface for blitting
         self.surface = None
         
+        # Auto-zoom mode
+        self.auto_zoom_enabled = True
+        
     def add_data(self, time: float, error: float, output: float, 
                  p_component: float, i_component: float, d_component: float):
         """Add new data point"""
@@ -75,6 +80,19 @@ class GraphPlotter:
         self.p_data.append(p_component)
         self.i_data.append(i_component)
         self.d_data.append(d_component)
+        
+        # Auto-adjust scale if auto-zoom is enabled
+        if self.auto_zoom_enabled:
+            # For error
+            if abs(error) > self.error_scale * 0.95:
+                self.error_scale = abs(error) * 1.2
+                self.error_range = (-self.error_scale, self.error_scale)
+            
+            # For output
+            max_output_value = max(abs(output), abs(p_component), abs(i_component), abs(d_component))
+            if max_output_value > self.output_scale * 0.95:
+                self.output_scale = max_output_value * 1.2
+                self.output_range = (-self.output_scale, self.output_scale)
         
     def update(self):
         """Update the plots"""
@@ -111,7 +129,7 @@ class GraphPlotter:
         self.ax1.set_ylabel('Error (pixels)', fontsize=12)
         self.ax1.set_ylim(self.error_range)
         self.ax1.grid(True, alpha=0.3)
-        self.ax1.legend(loc='upper right', fontsize=10)
+        self.ax1.legend(loc='upper left', fontsize=10)
         
         # Plot control output and components
         self.ax2.plot(time_array, output_array, 'k-', linewidth=2, label='Total')
@@ -123,7 +141,7 @@ class GraphPlotter:
         self.ax2.set_xlabel('Time (s)', fontsize=12)
         self.ax2.set_ylim(self.output_range)
         self.ax2.grid(True, alpha=0.3)
-        self.ax2.legend(loc='upper right', fontsize=10)
+        self.ax2.legend(loc='upper left', fontsize=10)
         
         # Set x-axis limits - always show a fixed time window
         if self.current_time <= self.time_window:
@@ -167,3 +185,34 @@ class GraphPlotter:
         self.d_data = []
         self.start_time = 0
         self.current_time = 0
+        
+    def zoom_in_y(self):
+        """Zoom in on Y axes (reduce scale)"""
+        self.auto_zoom_enabled = False  # Disable auto-zoom when manually zooming
+        self.error_scale = max(1, self.error_scale * 0.8)
+        self.output_scale = max(10, self.output_scale * 0.8)
+        self.error_range = (-self.error_scale, self.error_scale)
+        self.output_range = (-self.output_scale, self.output_scale)
+        
+    def zoom_out_y(self):
+        """Zoom out on Y axes (increase scale)"""
+        self.auto_zoom_enabled = False  # Disable auto-zoom when manually zooming
+        self.error_scale = min(2000, self.error_scale * 1.25)
+        self.output_scale = min(2000, self.output_scale * 1.25)
+        self.error_range = (-self.error_scale, self.error_scale)
+        self.output_range = (-self.output_scale, self.output_scale)
+        
+    def auto_scale(self):
+        """Auto-scale Y axes based on data and re-enable auto-zoom"""
+        self.auto_zoom_enabled = True  # Re-enable auto-zoom
+        
+        if len(self.error_data) > 0:
+            max_error = max(abs(min(self.error_data)), abs(max(self.error_data)))
+            self.error_scale = max(1, min(2000, max_error * 1.2))
+            self.error_range = (-self.error_scale, self.error_scale)
+            
+        if len(self.output_data) > 0:
+            all_outputs = self.output_data + self.p_data + self.i_data + self.d_data
+            max_output = max(abs(min(all_outputs)), abs(max(all_outputs)))
+            self.output_scale = max(10, min(2000, max_output * 1.2))
+            self.output_range = (-self.output_scale, self.output_scale)

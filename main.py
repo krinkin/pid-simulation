@@ -12,7 +12,7 @@ from graph_plotter import GraphPlotter
 @dataclass
 class SimulationConfig:
     width: int = 1600
-    height: int = 900
+    height: int = 950
     fps: int = 60
     background_color: Tuple[int, int, int] = (240, 240, 240)
     center_line_color: Tuple[int, int, int] = (200, 200, 200)
@@ -50,7 +50,7 @@ class PIDSimulator:
         )
         
         # Create PID controller
-        self.pid = PIDController(kp=3.345, ki=0.014, kd=3.486)
+        self.pid = PIDController(kp=5.0, ki=0.5, kd=2.0)
         
         # Create control panel on the right side
         self.control_panel = ControlPanel(self.sim_width + 20, 20)
@@ -114,6 +114,12 @@ class PIDSimulator:
         # Draw platform
         self.platform.draw(self.screen)
         
+        # Draw wind indicator
+        self.draw_wind_indicator()
+        
+        # Draw deadband indicator
+        self.draw_deadband_indicator()
+        
         # Draw force visualization
         if hasattr(self.pid, 'state') and self.pid.state.output != 0:
             self.draw_force_arrow()
@@ -123,6 +129,9 @@ class PIDSimulator:
         
         # Draw PID state info
         self.draw_pid_info()
+        
+        # Draw deadband status
+        self.draw_deadband_status()
         
         # Draw component bars
         self.draw_component_bars()
@@ -134,6 +143,60 @@ class PIDSimulator:
         
         pygame.display.flip()
         
+    def draw_wind_indicator(self):
+        """Draw wind direction and strength indicator"""
+        if abs(self.platform.wind_force) > 0.01:
+            # Position for wind indicator (top of simulation area)
+            wind_y = 50
+            wind_x = self.sim_width // 2
+            
+            # Scale wind force for visualization
+            wind_scale = 10
+            wind_length = int(self.platform.wind_force * wind_scale)
+            
+            # Draw wind arrow
+            arrow_start = (wind_x, wind_y)
+            arrow_end = (wind_x + wind_length, wind_y)
+            
+            # Wind color (blue-ish)
+            wind_color = (100, 150, 255)
+            
+            pygame.draw.line(self.screen, wind_color, arrow_start, arrow_end, 4)
+            
+            # Arrow head
+            if wind_length != 0:
+                sign = 1 if wind_length > 0 else -1
+                pygame.draw.polygon(self.screen, wind_color, [
+                    arrow_end,
+                    (arrow_end[0] - sign * 10, arrow_end[1] - 5),
+                    (arrow_end[0] - sign * 10, arrow_end[1] + 5)
+                ])
+            
+            # Wind label
+            wind_text = self.small_font.render(f"Wind: {self.platform.wind_force:.1f}", True, wind_color)
+            text_rect = wind_text.get_rect(center=(wind_x, wind_y - 20))
+            self.screen.blit(wind_text, text_rect)
+    
+    def draw_deadband_indicator(self):
+        """Draw deadband zone indicator"""
+        # Draw a subtle shaded area around center to show deadband
+        deadband_pixels = 200  # Visual representation of deadband zone
+        deadband_rect = pygame.Rect(
+            self.center_x - deadband_pixels,
+            self.sim_height - 150,
+            2 * deadband_pixels,
+            120
+        )
+        deadband_surface = pygame.Surface((deadband_rect.width, deadband_rect.height))
+        deadband_surface.set_alpha(60)  # More visible
+        deadband_surface.fill((255, 150, 150))
+        self.screen.blit(deadband_surface, deadband_rect)
+        
+        # Label
+        deadband_text = self.small_font.render("Deadband Zone", True, (200, 100, 100))
+        text_rect = deadband_text.get_rect(center=(self.center_x, self.sim_height - 170))
+        self.screen.blit(deadband_text, text_rect)
+    
     def draw_force_arrow(self):
         """Draw force arrow on platform"""
         force_scale = 2.0
@@ -161,7 +224,7 @@ class PIDSimulator:
             return
             
         x_offset = self.sim_width + 20
-        y_offset = 400  # Move down more to avoid overlap with controls
+        y_offset = 480  # Move down more to avoid overlap with controls and buttons
         
         # Title
         title = self.font.render("PID State", True, (0, 0, 0))
@@ -223,13 +286,23 @@ class PIDSimulator:
         )
         self.screen.blit(output_text, (x_offset, y_offset))
         
+    def draw_deadband_status(self):
+        """Show if platform is stuck in deadband"""
+        if hasattr(self.pid, 'state'):
+            total_force = self.pid.state.output + self.platform.wind_force
+            if abs(total_force) < 5.0 and abs(self.platform.velocity) < 0.5:
+                # In deadband
+                status_text = self.font.render("STUCK IN DEADBAND", True, (255, 0, 0))
+                text_rect = status_text.get_rect(center=(self.center_x, self.sim_height - 200))
+                self.screen.blit(status_text, text_rect)
+    
     def draw_component_bars(self):
         """Draw visual bars for PID components"""
         if not hasattr(self.pid, 'state'):
             return
             
         bar_x = self.sim_width + 40  # Move right to make room for labels
-        bar_y = 650  # Move down to avoid overlap
+        bar_y = 720  # Move down to avoid overlap with PID state text
         bar_width = 380
         bar_height = 25
         max_value = 50  # Scale for visualization
@@ -286,6 +359,20 @@ class PIDSimulator:
         label_text = self.small_font.render(label, True, (0, 0, 0))
         self.screen.blit(label_text, (x - 25, y))  # Adjust label position
         
+    def reset_simulation(self):
+        """Reset simulation to initial state"""
+        # Reset platform position
+        self.platform.set_position(self.center_x)
+        
+        # Reset PID controller state
+        self.pid.reset()
+        
+        # Reset graphs
+        self.graph_plotter.reset()
+        
+        # Reset time
+        self.simulation_time = 0.0
+        
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -309,6 +396,9 @@ class PIDSimulator:
                 # Update platform mass
                 if 'mass' in changed:
                     self.platform.mass = changed['mass']
+                # Update wind
+                if 'wind' in changed:
+                    self.platform.wind_force = changed['wind']
                 # Update enabled states
                 if 'kp_enabled' in changed:
                     self.pid_enabled['kp'] = changed['kp_enabled']
@@ -319,10 +409,22 @@ class PIDSimulator:
                 # Update simulation speed
                 if 'speed' in changed:
                     self.simulation_speed = changed['speed']
-                # Handle reset button
+                # Handle reset buttons
                 if 'reset_graphs' in changed:
                     self.graph_plotter.reset()
                     self.simulation_time = 0.0
+                if 'reset_simulation' in changed:
+                    self.reset_simulation()
+                # Handle zoom buttons
+                if 'zoom_in' in changed:
+                    self.graph_plotter.zoom_in_y()
+                    self.graph_plotter.update()
+                if 'zoom_out' in changed:
+                    self.graph_plotter.zoom_out_y()
+                    self.graph_plotter.update()
+                if 'auto_scale' in changed:
+                    self.graph_plotter.auto_scale()
+                    self.graph_plotter.update()
                 
     def run(self):
         while self.running:

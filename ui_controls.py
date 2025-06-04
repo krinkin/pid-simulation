@@ -187,19 +187,22 @@ class ControlPanel:
         self.sliders = {
             'kp': Slider(slider_x, y + self.padding, 
                         self.width - 50, self.slider_height,
-                        0.0, 10.0, 3.345, "Kp (Proportional)"),
+                        0.0, 20.0, 5.0, "Kp (Proportional)"),
             'ki': Slider(slider_x, y + self.padding + self.slider_spacing,
                         self.width - 50, self.slider_height,
-                        0.0, 3.0, 0.014, "Ki (Integral)"),
+                        0.0, 3.0, 0.5, "Ki (Integral)"),
             'kd': Slider(slider_x, y + self.padding + 2 * self.slider_spacing,
                         self.width - 50, self.slider_height,
-                        0.0, 5.0, 3.486, "Kd (Derivative)"),
+                        0.0, 10.0, 2.0, "Kd (Derivative)"),
             'mass': Slider(x + self.padding, y + self.padding + 3 * self.slider_spacing,
                           self.width - 2 * self.padding, self.slider_height,
                           0.1, 10.0, 1.0, "Mass"),
             'speed': Slider(x + self.padding, y + self.padding + 4 * self.slider_spacing,
                           self.width - 2 * self.padding, self.slider_height,
                           0.5, 5.0, 2.2, "Simulation Speed"),
+            'wind': Slider(x + self.padding, y + self.padding + 5 * self.slider_spacing,
+                          self.width - 2 * self.padding, self.slider_height,
+                          -20.0, 20.0, 0.0, "Wind Force"),
         }
         
         # Create checkboxes for PID components
@@ -213,13 +216,48 @@ class ControlPanel:
                                   checkbox_size, "", True),
         }
         
-        # Create reset button
-        self.reset_button = Button(
+        # Create buttons - first row
+        button_width = (self.width - 3 * self.padding) // 2
+        self.reset_graphs_button = Button(
             x + self.padding, 
-            y + self.padding + 5 * self.slider_spacing,
-            self.width - 2 * self.padding,
+            y + self.padding + 6 * self.slider_spacing,
+            button_width,
             30,
             "Reset Graphs"
+        )
+        
+        self.reset_sim_button = Button(
+            x + self.padding + button_width + self.padding,
+            y + self.padding + 6 * self.slider_spacing,
+            button_width,
+            30,
+            "Reset Simulation"
+        )
+        
+        # Create buttons - second row for graph controls
+        button_width_small = (self.width - 4 * self.padding) // 3
+        self.zoom_in_button = Button(
+            x + self.padding,
+            y + self.padding + 6 * self.slider_spacing + 40,
+            button_width_small,
+            30,
+            "Zoom In Y"
+        )
+        
+        self.zoom_out_button = Button(
+            x + self.padding + button_width_small + self.padding,
+            y + self.padding + 6 * self.slider_spacing + 40,
+            button_width_small,
+            30,
+            "Zoom Out Y"
+        )
+        
+        self.auto_scale_button = Button(
+            x + self.padding + 2 * (button_width_small + self.padding),
+            y + self.padding + 6 * self.slider_spacing + 40,
+            button_width_small,
+            30,
+            "Auto Scale"
         )
         
         # Background
@@ -227,7 +265,7 @@ class ControlPanel:
         self.border_color = (100, 100, 100)
         
         # Calculate total height
-        self.height = 6 * self.slider_spacing + 2 * self.padding
+        self.height = 7 * self.slider_spacing + 2 * self.padding
         
     def handle_event(self, event: pygame.event.Event) -> dict:
         """Handle events and return dict of changed values"""
@@ -240,9 +278,22 @@ class ControlPanel:
             if checkbox.handle_event(event):
                 changed[name] = checkbox.checked
                 
-        # Handle reset button
-        if self.reset_button.handle_event(event):
+        # Handle reset buttons
+        if self.reset_graphs_button.handle_event(event):
             changed['reset_graphs'] = True
+            
+        if self.reset_sim_button.handle_event(event):
+            changed['reset_simulation'] = True
+            
+        # Handle zoom buttons
+        if self.zoom_in_button.handle_event(event):
+            changed['zoom_in'] = True
+            
+        if self.zoom_out_button.handle_event(event):
+            changed['zoom_out'] = True
+            
+        if self.auto_scale_button.handle_event(event):
+            changed['auto_scale'] = True
                 
         return changed
         
@@ -261,8 +312,12 @@ class ControlPanel:
         for checkbox in self.checkboxes.values():
             checkbox.draw(screen)
             
-        # Draw reset button
-        self.reset_button.draw(screen)
+        # Draw all buttons
+        self.reset_graphs_button.draw(screen)
+        self.reset_sim_button.draw(screen)
+        self.zoom_in_button.draw(screen)
+        self.zoom_out_button.draw(screen)
+        self.auto_scale_button.draw(screen)
             
     def get_values(self) -> dict:
         """Get current values of all sliders and checkboxes"""

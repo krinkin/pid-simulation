@@ -17,7 +17,7 @@ class Platform:
         self.color = (100, 100, 200)
         
         # Physics parameters
-        self.friction_coefficient = 0.1
+        self.wind_force = 0.0
         
     def apply_force(self, force: float):
         """Apply horizontal force to the platform"""
@@ -25,12 +25,36 @@ class Platform:
         
     def update(self, dt: float):
         """Update platform physics"""
-        # Apply friction
-        friction_force = -self.friction_coefficient * self.velocity
-        friction_acceleration = friction_force / self.mass
+        # Store the control force before modifications
+        control_force = self.acceleration * self.mass
+        
+        # Apply wind as a constant external force
+        wind_acceleration = self.wind_force / self.mass
+        
+        # Apply velocity-dependent damping
+        damping = 0.1
+        damping_acceleration = -damping * self.velocity
+        
+        # Calculate total force including wind
+        total_force = control_force + self.wind_force
+        
+        # Apply deadband - if total force is too small, platform doesn't move
+        deadband_threshold = 5.0
+        
+        if abs(total_force) < deadband_threshold:
+            # In deadband - high static friction prevents movement
+            if abs(self.velocity) < 0.5:
+                # Stop completely if moving slowly
+                self.velocity = 0
+                self.acceleration = 0
+                return
+            else:
+                # Apply heavy damping if still moving
+                damping_acceleration = -0.5 * self.velocity
         
         # Update velocity and position
-        self.velocity += (self.acceleration + friction_acceleration) * dt
+        total_acceleration = self.acceleration + wind_acceleration + damping_acceleration
+        self.velocity += total_acceleration * dt
         self.x += self.velocity * dt
         
         # Reset acceleration for next frame
