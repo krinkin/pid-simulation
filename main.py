@@ -3,6 +3,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Tuple
 from platform import Platform
+from pid_controller import PIDController
 
 
 @dataclass
@@ -38,6 +39,9 @@ class PIDSimulator:
             mass=1.0
         )
         
+        # Create PID controller
+        self.pid = PIDController(kp=2.0, ki=0.1, kd=0.5)
+        
     def draw(self):
         self.screen.fill(self.config.background_color)
         
@@ -67,6 +71,15 @@ class PIDSimulator:
     def run(self):
         while self.running:
             self.handle_events()
+            
+            # PID control
+            force = self.pid.update(
+                setpoint=self.center_x,
+                current_value=self.platform.get_position(),
+                dt=self.dt
+            )
+            self.platform.apply_force(force)
+            
             self.platform.update(self.dt)
             self.draw()
             self.clock.tick(self.config.fps)
