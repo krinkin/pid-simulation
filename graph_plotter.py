@@ -160,10 +160,13 @@ class GraphPlotter:
         # Render to pygame surface
         self.canvas.draw()
         renderer = self.canvas.get_renderer()
-        raw_data = renderer.tostring_rgb()
+        raw_data = renderer.buffer_rgba()
         size = self.canvas.get_width_height()
         
-        self.surface = pygame.image.fromstring(raw_data, size, "RGB")
+        #raw_data = renderer.buffer_rgba()
+        self.surface = pygame.image.frombuffer(raw_data, size, "RGBA")
+
+        #self.surface = pygame.image.fromstring(raw_data, size, "RGB")
         
     def draw(self, screen: pygame.Surface):
         """Draw the graphs to the screen"""
